@@ -1,0 +1,36 @@
+{
+  "name": "posthog-axi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only PostHog analytics CLI for agents",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "UNLICENSED",
+  "bin": {
+    "posthog-axi": "bin/posthog-axi.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint . && prettier --check .",
+    "generate": "node scripts/generate-skill.js",
+    "check": "npm run lint && node scripts/generate-skill.js --check"
+  },
+  "dependencies": {
+    "@toon-format/toon": "4.4.0",
+    "axi-sdk-js": "0.1.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.8.1"
+  }
+}

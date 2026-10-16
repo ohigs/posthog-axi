@@ -1040,6 +1040,13 @@ test('package can be packed and installed outside checkout', async (t) => {
     ),
   );
   assert.equal(metadata.private, true);
-  assert.equal(metadata.license, 'UNLICENSED');
+  assert.equal(metadata.license, 'MIT');
+  assert.match(
+    await readFile(
+      join(e.directory, 'node_modules/posthog-axi/LICENSE'),
+      'utf8',
+    ),
+    /Permission is hereby granted, free of charge/,
+  );
   assert.equal(e.requests.length, 1);
 });

@@ -2,7 +2,7 @@
 
 Manage PostHog analytics, insights, dashboards and feature flags through a small CLI for agents.
 This is a private, unpublished initial release for Node.js 20 or newer.
-No license grant is included.
+Licensed under the [MIT License](LICENSE).
 
 ## Install locally
 

@@ -115,8 +115,75 @@ async function fixture(t, respond) {
   }
   return { run, file, requests, records, host };
 }
+for (const resource of ['insights', 'dashboards', 'flags']) {
+  test(`mutation ${resource} rejects an unacknowledged metadata update`, async (t) => {
+    const e = await fixture(t, (_request, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ id: 7, name: 'Old name' }));
+    });
+    const result = await e.run([resource, 'update', '7', '--name', 'New name']);
+    assert.equal(result.code, 1);
+    assert.equal(result.data.error.code, 'MUTATION_UNCERTAIN');
+    assert.deepEqual(
+      e.requests.map((request) => request.method),
+      ['GET', 'PATCH'],
+    );
+    assert.match(result.data.error.next, /view '7'/);
+  });
+}
+
 const query = { kind: 'HogQLQuery', query: 'SELECT 1' };
 const targeting = { groups: [{ properties: [], rollout_percentage: 25 }] };
+
+test('mutation targeting acknowledgment allows the server to increment the version', async (t) => {
+  const e = await fixture(t, (request, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify(
+        request.method === 'GET'
+          ? { id: 7, version: 3, filters: { groups: [] } }
+          : { id: 7, version: 4, filters: request.body.filters },
+      ),
+    );
+  });
+  const path = await e.file('versioned-targeting.json', targeting);
+  const result = await e.run([
+    'flags',
+    'update',
+    '7',
+    '--targeting-file',
+    path,
+    '--confirm-targeting',
+    '42/flags/7',
+  ]);
+  assert.equal(result.code, 0);
+  assert.equal(result.data.state, 'applied');
+  assert.deepEqual(
+    e.requests.map((request) => request.method),
+    ['GET', 'PATCH'],
+  );
+  assert.deepEqual(e.requests[1].body, { filters: targeting, version: 3 });
+});
+
+test('mutation accepts null multivariate in a boolean targeting definition', async (t) => {
+  const e = await fixture(t);
+  const definition = { ...targeting, multivariate: null };
+  const path = await e.file('nullable-targeting.json', definition);
+  const result = await e.run([
+    'flags',
+    'create',
+    '--key',
+    'nullable-targeting',
+    '--targeting-file',
+    path,
+    '--confirm-targeting',
+    '42/flags/key:nullable-targeting',
+    '--dry-run',
+  ]);
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.data.request.body.filters, definition);
+  assert.deepEqual(e.requests, []);
+});
 
 for (const resource of ['insights', 'dashboards', 'flags']) {
   test(`mutation ${resource} create sends one exact write`, async (t) => {

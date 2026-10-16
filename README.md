@@ -11,15 +11,15 @@ Install the pinned GitHub release, not a package from the npm registry.
 The package retains `private: true` to prevent accidental npm publication.
 
 ```sh
-npm install -g 'git+https://github.com/ohigs/posthog-axi.git#v0.2.0'
+npm install -g 'git+https://github.com/ohigs/posthog-axi.git#v0.3.0'
 posthog-axi --version
 ```
 
-The version output is `0.2.0`.
+The version output is `0.3.0`.
 Without a global installation, run commands through npm exec.
 
 ```sh
-npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi --version
+npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi --version
 ```
 
 Both methods require Git and network access on first installation.
@@ -128,6 +128,33 @@ No alternate endpoint is used to bypass approval or concurrency policy.
 Archived flags remain observable, but deleted insights and dashboards can disappear from ordinary detail lookup.
 A later HTTP404 is not proof of an already-completed archive.
 
+## Read persons, cohorts, annotations and recordings
+
+Version 0.3.0 adds `persons`, `cohorts`, `annotations` and `recordings` list and view commands.
+Use the pinned installation above, or run a checkout with `npm ci` and `node bin/posthog-axi.js`.
+They require `person:read`, `cohort:read`, `annotation:read` and `session_recording:read` respectively.
+
+```sh
+node bin/posthog-axi.js persons list --distinct-id user_123 --fields id,name
+node bin/posthog-axi.js persons view 17 --json
+node bin/posthog-axi.js cohorts list --search active
+node bin/posthog-axi.js annotations list --search deploy
+node bin/posthog-axi.js recordings list --limit 10
+node bin/posthog-axi.js projects view 42 --fields id,primary_dashboard
+```
+
+Person IDs accept positive integers or UUIDs.
+Recording IDs accept letters, digits, underscores and hyphens, up to 128 characters.
+Recordings return metadata, not replay snapshots.
+Persons support `--distinct-id`, `--email` and `--search` list filters.
+Cohorts and annotations support `--search`.
+All four resources use bounded offset pagination and the existing output projection and redaction rules.
+No person, cohort, annotation or recording mutation is provided.
+Person properties, names, distinct IDs and recording URLs can contain personal data.
+Use `--fields` to minimise returned data and treat output as sensitive.
+Secret redaction does not anonymise analytics data.
+Project details now expose the nullable `primary_dashboard` ID without returning the project's ingestion token.
+
 ## Command reference
 
 `posthog-axi` and `posthog-axi home` display current authentication presence, executable path, scope, and relevant commands.
@@ -151,7 +178,7 @@ Bare `-v`, `-V`, and `--version` bypass the command graph.
 | `setup status --project-dir <path>`                          | Inspect SDK integration status without writing files. |
 | `setup hooks --project-dir <path> --allow-codex-user-config` | Report deferred installation without writing files.   |
 
-Resource IDs are positive safe integers except event IDs, which require UUIDs.
+Resource IDs are positive safe integers except event UUIDs, person UUID aliases and recording IDs described above.
 Insight short IDs are not accepted in this initial release.
 Insight names fall back to `derived_name`, then null.
 Missing or nullable optional fields display null.
@@ -235,7 +262,8 @@ The executable uses its dependency-free version fast path.
 `src/guidance.js` generates help and the static skill.
 Do not edit generated skill files manually.
 
-The CLI reads projects, insights, dashboards, flags, and events and explicitly creates, updates and archives insights, dashboards and flags.
+The CLI reads projects, insights, dashboards, flags, events, persons, cohorts, annotations and recording metadata.
+It explicitly creates, updates and archives insights, dashboards and flags.
 Home and ordinary reads remain side-effect-free.
 The CLI does not ingest events, expose arbitrary HTTP requests, hard-delete resources or install integrations implicitly.
 The query POST executes analytics and does not change project configuration.
@@ -277,10 +305,14 @@ Tests execute subprocesses against local HTTP fixture servers with disposable ho
 They assert requests, payloads, outputs, exit codes, security behavior, SDK hook limitations, and installation of a packed tarball outside the checkout.
 `npm run check` includes the generated skill freshness gate.
 CI runs on Node.js 20, 22, and 24.
-Authenticated validation passed against PostHog EU Cloud with operator-authorized, isolated temporary resources.
+Version 0.2.0 authenticated validation passed against PostHog EU Cloud with operator-authorized, isolated temporary resources.
 Read checks covered project details, insights, dashboards, flags, events, and `SELECT 1`.
 Mutation checks covered dashboard, insight, and flag creation, updates, and archives, query replacement, membership removal and restoration, and observed no-ops.
 Guarded flag enable and disable checks used zero-percent rollout.
 Cleanup verified the flag inactive and archived, with insight and dashboard detail lookups returning HTTP 404.
 No pre-existing resources were modified.
+Version 0.3.0 additionally passed bounded, identity-only list reads for persons, cohorts, annotations and recordings.
+Cohort and recording detail reads passed against items from those lists.
+Person and annotation lists were empty, so their live detail endpoints remain unverified.
+The new update acknowledgment checks are verified by executable local fixtures, not additional production mutations.
 These checks do not guarantee permissions, approval policies, or API behavior on other deployments.

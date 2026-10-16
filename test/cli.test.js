@@ -83,6 +83,75 @@ async function environment(t, responder = () => ({ results: [], next: null })) {
   }
   return { run, requests, host, directory, home };
 }
+for (const [hasNext, expectedCode] of [
+  [false, 0],
+  [true, 1],
+  [null, 1],
+  ['true', 1],
+]) {
+  test(`recording empty-page continuation validates ${JSON.stringify(hasNext)}`, async (t) => {
+    const e = await environment(t, () => ({ results: [], has_next: hasNext }));
+    const result = await e.run(['recordings', 'list', '--json']);
+    assert.equal(result.code, expectedCode, result.stdout);
+    if (expectedCode) assert.equal(result.value.error.code, 'INVALID_RESPONSE');
+    else assert.equal(result.value.next, null);
+  });
+}
+
+test('detail reads reject a different object identity', async (t) => {
+  const e = await environment(t, () => ({ id: 99, name: 'Wrong dashboard' }));
+  const result = await e.run(['dashboards', 'view', '7', '--json']);
+  assert.equal(result.code, 1);
+  assert.equal(result.value.error.code, 'INVALID_RESPONSE');
+  assert.equal(result.stdout.includes('Wrong dashboard'), false);
+});
+
+test('project details expose the primary dashboard without exposing unrelated fields', async (t) => {
+  const e = await environment(t, () => ({
+    id: 42,
+    name: 'Fixture project',
+    primary_dashboard: 7,
+    api_token: 'hidden-project-token',
+  }));
+  const detail = await e.run(['projects', 'view', '42', '--json']);
+  assert.equal(detail.code, 0, detail.stdout);
+  assert.deepEqual(detail.value.item, {
+    id: 42,
+    name: 'Fixture project',
+    timezone: null,
+    created_at: null,
+    primary_dashboard: 7,
+  });
+  assert.equal(detail.stdout.includes('hidden-project-token'), false);
+  const selected = await e.run([
+    'projects',
+    'view',
+    '42',
+    '--fields',
+    'primary_dashboard',
+    '--json',
+  ]);
+  assert.equal(selected.code, 0, selected.stdout);
+  assert.deepEqual(selected.value.item, { primary_dashboard: 7 });
+});
+
+for (const primary of [null, undefined, 'not-a-dashboard', [], {}]) {
+  test(`project primary dashboard validates ${JSON.stringify(primary)}`, async (t) => {
+    const e = await environment(t, () => ({
+      id: 42,
+      primary_dashboard: primary,
+    }));
+    const result = await e.run(['projects', 'view', '42', '--json']);
+    if (primary == null) {
+      assert.equal(result.code, 0, result.stdout);
+      assert.equal(result.value.item.primary_dashboard, null);
+    } else {
+      assert.equal(result.code, 1, result.stdout);
+      assert.equal(result.value.error.code, 'INVALID_RESPONSE');
+    }
+  });
+}
+
 test('review nullable synchronous query status is absent, but status commands stay strict', async (t) => {
   const e = await environment(t, () => ({
     columns: ['1'],
@@ -336,7 +405,13 @@ const examples = [
     '7',
     { id: 7, name: 'Demo', timezone: 'UTC', api_token: 'hidden' },
     { id: 7, name: 'Demo', timezone: 'UTC' },
-    { id: 7, name: 'Demo', timezone: 'UTC', created_at: null },
+    {
+      id: 7,
+      name: 'Demo',
+      timezone: 'UTC',
+      created_at: null,
+      primary_dashboard: null,
+    },
   ],
   [
     'insights',
@@ -461,7 +536,7 @@ test('version aliases, help, and home never send requests or need authentication
         POSTHOG_PERSONAL_API_KEY: '',
         POSTHOG_HOST: 'invalid',
       }),
-      { code: 0, stdout: '0.2.0\n', value: undefined },
+      { code: 0, stdout: '0.3.0\n', value: undefined },
     );
   for (const args of [
     ['--help'],
@@ -1001,7 +1076,7 @@ test('package can be packed and installed outside checkout', async (t) => {
   const installedCli = join(e.directory, 'node_modules/posthog-axi/src/cli.js');
   await rename(installedCli, `${installedCli}.disabled`);
   for (const alias of ['--version', '-v', '-V'])
-    assert.equal((await e.run([alias], {}, executable)).stdout, '0.2.0\n');
+    assert.equal((await e.run([alias], {}, executable)).stdout, '0.3.0\n');
   await rename(`${installedCli}.disabled`, installedCli);
   const linked = spawn(
     join(e.directory, 'node_modules/.bin/posthog-axi'),
@@ -1021,7 +1096,7 @@ test('package can be packed and installed outside checkout', async (t) => {
     errors += chunk;
   });
   assert.equal(await new Promise((resolve) => linked.on('close', resolve)), 0);
-  assert.equal(version, '0.2.0\n');
+  assert.equal(version, '0.3.0\n');
   assert.equal(errors, '');
   const list = await e.run(['projects', 'list', '--json'], {}, executable);
   assert.equal(list.code, 0);
@@ -1059,7 +1134,7 @@ test('package can be packed and installed outside checkout', async (t) => {
   );
   assert.ok(
     skill.includes(
-      "npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi home",
+      "npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi home",
     ),
   );
   const execDirectory = await mkdtemp(join(tmpdir(), 'posthog-axi-exec-'));
@@ -1077,8 +1152,13 @@ test('package can be packed and installed outside checkout', async (t) => {
       ],
       execDirectory,
     ),
-    '0.2.0\n',
+    '0.3.0\n',
   );
+  for (const resource of ['persons', 'cohorts', 'annotations', 'recordings']) {
+    const scoped = await e.run([resource, '--help'], {}, executable);
+    assert.equal(scoped.code, 0, scoped.stdout);
+    assert.ok(scoped.stdout.includes('Safe fields:'));
+  }
   assert.match(
     await readFile(
       join(e.directory, 'node_modules/posthog-axi/LICENSE'),

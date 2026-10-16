@@ -1,6 +1,6 @@
 {
   "name": "posthog-axi",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Manage PostHog analytics, dashboards and feature flags for agents",
   "type": "module",

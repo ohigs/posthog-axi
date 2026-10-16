@@ -154,7 +154,7 @@ export const inputParsers = {
         );
     }
     if (
-      value.multivariate !== undefined &&
+      value.multivariate != null &&
       (!object(value.multivariate) ||
         !Array.isArray(value.multivariate.variants))
     )

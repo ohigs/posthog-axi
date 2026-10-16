@@ -58,7 +58,7 @@ async function execute(invocation) {
   if (kind === 'update')
     throw new CliError(
       'UPDATE_UNAVAILABLE',
-      'This private local package cannot self-update. Reinstall from your trusted local checkout.',
+      'Automatic self-update is disabled. Install a reviewed GitHub release explicitly. This package is not published to npm.',
     );
   if (kind === 'setup-hooks')
     throw new CliError(

@@ -941,7 +941,7 @@ test('self-update is shadowed and cannot invoke npm', async (t) => {
     error: {
       code: 'UPDATE_UNAVAILABLE',
       message:
-        'This private local package cannot self-update. Reinstall from your trusted local checkout.',
+        'Automatic self-update is disabled. Install a reviewed GitHub release explicitly. This package is not published to npm.',
     },
   });
   assert.deepEqual(e.requests, []);
@@ -1041,6 +1041,44 @@ test('package can be packed and installed outside checkout', async (t) => {
   );
   assert.equal(metadata.private, true);
   assert.equal(metadata.license, 'MIT');
+  assert.equal(
+    metadata.repository.url,
+    'git+https://github.com/ohigs/posthog-axi.git',
+  );
+  assert.equal(
+    metadata.homepage,
+    'https://github.com/ohigs/posthog-axi#readme',
+  );
+  assert.equal(
+    metadata.bugs.url,
+    'https://github.com/ohigs/posthog-axi/issues',
+  );
+  const skill = await readFile(
+    join(e.directory, 'node_modules/posthog-axi/skills/posthog-axi/SKILL.md'),
+    'utf8',
+  );
+  assert.ok(
+    skill.includes(
+      "npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi home",
+    ),
+  );
+  const execDirectory = await mkdtemp(join(tmpdir(), 'posthog-axi-exec-'));
+  t.after(() => rm(execDirectory, { recursive: true, force: true }));
+  await writeFile(join(execDirectory, 'package.json'), '{"private":true}');
+  assert.equal(
+    await npm(
+      [
+        'exec',
+        '--yes',
+        `--package=${join(e.directory, packed.filename)}`,
+        '--',
+        'posthog-axi',
+        '--version',
+      ],
+      execDirectory,
+    ),
+    '0.2.0\n',
+  );
   assert.match(
     await readFile(
       join(e.directory, 'node_modules/posthog-axi/LICENSE'),

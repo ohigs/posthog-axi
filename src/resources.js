@@ -76,13 +76,25 @@ const boolean = (value) => typeof value === 'boolean';
 const object = (value) =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 const array = Array.isArray;
+const personId = (value) => numeric(value) || uuid(value);
+const recordingId = (value) =>
+  typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+const strings = (value) => array(value) && value.every(text);
+const nonnegative = (value) =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 export const resources = {
   projects: {
     endpoint: 'projects',
     scope: false,
     id: numeric,
-    fields: { id: numeric, name: text, timezone: text, created_at: text },
+    fields: {
+      id: numeric,
+      name: text,
+      timezone: text,
+      created_at: text,
+      primary_dashboard: numeric,
+    },
     defaults: ['id', 'name', 'timezone'],
   },
   insights: {
@@ -264,10 +276,92 @@ export const resources = {
       ),
     },
   },
+  persons: {
+    endpoint: 'persons',
+    scope: true,
+    id: personId,
+    identityFields: ['id', 'uuid'],
+    idCase: 'insensitive',
+    idGuidance:
+      'Person IDs must be positive integers or UUIDs. Lists paginate with --offset.',
+    filters: { 'distinct-id': 'distinct_id', email: 'email', search: 'search' },
+    fields: {
+      id: personId,
+      uuid,
+      name: text,
+      distinct_ids: strings,
+      properties: object,
+      created_at: text,
+      last_seen_at: text,
+    },
+    defaults: ['id', 'name', 'distinct_ids'],
+  },
+  cohorts: {
+    endpoint: 'cohorts',
+    scope: true,
+    id: numeric,
+    filters: { search: 'search' },
+    fields: {
+      id: numeric,
+      name: text,
+      description: text,
+      count: nonnegative,
+      is_static: boolean,
+      is_calculating: boolean,
+      groups: array,
+      filters: object,
+      query: object,
+      created_at: text,
+      last_calculation: text,
+    },
+    defaults: ['id', 'name', 'count', 'is_calculating'],
+  },
+  annotations: {
+    endpoint: 'annotations',
+    scope: true,
+    id: numeric,
+    filters: { search: 'search' },
+    fields: {
+      id: numeric,
+      content: text,
+      date_marker: text,
+      scope: text,
+      dashboard_id: numeric,
+      dashboard_item: numeric,
+      created_at: text,
+      updated_at: text,
+      deleted: boolean,
+    },
+    defaults: ['id', 'content', 'date_marker', 'scope'],
+  },
+  recordings: {
+    endpoint: 'session_recordings',
+    scope: true,
+    moreField: 'has_next',
+    id: recordingId,
+    idGuidance:
+      'Recording IDs accept 1 through 128 letters, digits, underscores or hyphens. Lists paginate with --offset. Metadata only, not raw replay snapshots.',
+    fields: {
+      id: recordingId,
+      distinct_id: text,
+      start_time: text,
+      end_time: text,
+      recording_duration: nonnegative,
+      active_seconds: nonnegative,
+      inactive_seconds: nonnegative,
+      start_url: text,
+      click_count: nonnegative,
+      console_error_count: nonnegative,
+      viewed: boolean,
+      ongoing: boolean,
+    },
+    defaults: ['id', 'start_time', 'recording_duration', 'distinct_id'],
+  },
   events: {
     endpoint: 'events',
     scope: true,
     id: uuid,
+    idCase: 'insensitive',
     filters: { event: 'event', 'distinct-id': 'distinct_id' },
     pagination: ['before', 'after'],
     fields: {
@@ -306,13 +400,17 @@ export function decodePage(spec, value) {
     !Array.isArray(value.results) ||
     (value.count != null &&
       (!Number.isSafeInteger(value.count) || value.count < 0)) ||
-    (value.next != null && typeof value.next !== 'string')
+    (value.next != null && typeof value.next !== 'string') ||
+    (spec.moreField &&
+      value[spec.moreField] !== undefined &&
+      typeof value[spec.moreField] !== 'boolean')
   )
     throw invalidResponse();
   return {
     items: value.results.map((item) => decodeItem(spec, item)),
     total: value.count ?? null,
     next: value.next ?? null,
+    hasNext: spec.moreField ? (value[spec.moreField] ?? null) : null,
   };
 }
 

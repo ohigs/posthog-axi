@@ -77,18 +77,30 @@ async function execute(invocation) {
   if (kind === 'list' || kind === 'view') {
     const spec = resources[resource];
     const path = resourcePath(spec, project);
-    if (kind === 'view')
+    if (kind === 'view') {
+      const item = decodeItem(
+        spec,
+        await request(invocation, `${path}${invocation.id}/`),
+      );
+      const identities = (spec.identityFields ?? ['id']).map((field) =>
+        String(item[field]),
+      );
+      const matches =
+        spec.idCase === 'insensitive'
+          ? identities.some(
+              (id) => id.toLowerCase() === invocation.id.toLowerCase(),
+            )
+          : identities.includes(invocation.id);
+      if (!matches) throw invalidResponse();
       return {
         resource,
         item: projectItem(
-          decodeItem(
-            spec,
-            await request(invocation, `${path}${invocation.id}/`),
-          ),
+          item,
           invocation.fields ?? Object.keys(spec.fields),
           flags.full,
         ),
       };
+    }
     const params = new URLSearchParams({ limit: String(invocation.limit) });
     if (!spec.pagination) params.set('offset', String(invocation.offset));
     for (const name of spec.pagination ?? [])
@@ -106,6 +118,13 @@ async function execute(invocation) {
       page.items.length,
       spec,
     );
+    if (!next && page.hasNext === true) {
+      const offset =
+        invocation.offset + Math.min(page.items.length, invocation.limit);
+      if (!page.items.length || !Number.isSafeInteger(offset))
+        throw invalidResponse();
+      next = new URLSearchParams({ offset: String(offset) });
+    }
     if (page.items.length > invocation.limit) {
       if (
         resource === 'events' ||

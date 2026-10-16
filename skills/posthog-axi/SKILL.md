@@ -14,7 +14,7 @@ No globally installed binary is required.
 Node.js 20 or newer, npm, Git, and network access on first installation are required.
 Never fetch posthog-axi from the npm registry.
 Automatic self-update is disabled.
-Run `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi` to inspect current authentication and project scope.
+Run `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi` to inspect current authentication and project scope.
 Use scoped --help before calling a command.
 Use the same npm exec prefix for every command, including help, pagination, and status hints that display a bare posthog-axi command.
 Set POSTHOG_PROJECT_ID or --project explicitly.
@@ -22,32 +22,40 @@ A scoped personal key can allow project API access while the global projects lis
 
 ## Commands
 
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi home`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi projects list`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi projects view <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi insights list`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi insights view <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi insights create`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi insights update <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi insights archive <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi dashboards list`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi dashboards view <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi dashboards create`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi dashboards update <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi dashboards archive <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags list`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags view <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags create`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags update <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags archive <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags enable <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi flags disable <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi events list`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi events view <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi query --sql <sql> | --file <path>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi query status <id>`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi setup hooks --project-dir <path> --allow-codex-user-config`
-- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.2.0' -- posthog-axi setup status --project-dir <path>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi home`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi projects list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi projects view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi insights list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi insights view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi insights create`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi insights update <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi insights archive <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi dashboards list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi dashboards view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi dashboards create`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi dashboards update <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi dashboards archive <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags create`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags update <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags archive <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags enable <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi flags disable <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi persons list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi persons view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi cohorts list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi cohorts view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi annotations list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi annotations view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi recordings list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi recordings view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi events list`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi events view <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi query --sql <sql> | --file <path>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi query status <id>`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi setup hooks --project-dir <path> --allow-codex-user-config`
+- `npm exec --yes --package='git+https://github.com/ohigs/posthog-axi.git#v0.3.0' -- posthog-axi setup status --project-dir <path>`
 
 ## Safety and output
 
@@ -106,8 +114,12 @@ Honor server approval and version conflicts and never bypass them through anothe
 
 ## Safe resource fields
 
-- projects accepts `id`, `name`, `timezone`, `created_at`.
+- projects accepts `id`, `name`, `timezone`, `created_at`, `primary_dashboard`.
 - insights accepts `id`, `name`, `derived_name`, `description`, `short_id`, `last_refresh`, `filters`, `query`, `tags`, `favorited`, `dashboard_tiles`.
 - dashboards accepts `id`, `name`, `description`, `pinned`, `tags`, `tiles`.
 - flags accepts `id`, `key`, `name`, `active`, `filters`, `archived`, `version`.
+- persons accepts `id`, `uuid`, `name`, `distinct_ids`, `properties`, `created_at`, `last_seen_at`.
+- cohorts accepts `id`, `name`, `description`, `count`, `is_static`, `is_calculating`, `groups`, `filters`, `query`, `created_at`, `last_calculation`.
+- annotations accepts `id`, `content`, `date_marker`, `scope`, `dashboard_id`, `dashboard_item`, `created_at`, `updated_at`, `deleted`.
+- recordings accepts `id`, `distinct_id`, `start_time`, `end_time`, `recording_duration`, `active_seconds`, `inactive_seconds`, `start_url`, `click_count`, `console_error_count`, `viewed`, `ongoing`.
 - events accepts `id`, `event`, `timestamp`, `distinct_id`, `properties`.

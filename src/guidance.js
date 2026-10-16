@@ -86,9 +86,10 @@ export function help(invocation) {
             `Safe fields: ${Object.keys(spec.fields).join(',')}`,
             `Default list fields: ${spec.defaults.join(',')}`,
             'View defaults to all safe fields.',
-            invocation.resource === 'events'
-              ? 'Event IDs must be UUIDs. Pagination uses --before and --after timestamps, never --offset.'
-              : 'IDs must be positive integers. Lists paginate with --offset.',
+            spec.idGuidance ??
+              (invocation.resource === 'events'
+                ? 'Event IDs must be UUIDs. Pagination uses --before and --after timestamps, never --offset.'
+                : 'IDs must be positive integers. Lists paginate with --offset.'),
           ]
         : []),
       ...(topic === 'query'

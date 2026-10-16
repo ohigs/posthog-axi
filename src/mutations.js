@@ -215,8 +215,11 @@ export async function executeMutation(invocation) {
       item.key !== body.key
     )
       throw invalidResponse();
-    if (operation.desired && !matches(item, operation.desired))
-      throw invalidResponse();
+    const desired =
+      invocation.action === 'update'
+        ? invocation.mutation.body
+        : operation.desired;
+    if (desired && !matches(item, desired)) throw invalidResponse();
   } catch (error) {
     if (error instanceof CliError && error.code === 'AUTH_REQUIRED')
       throw error;

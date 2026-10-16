@@ -1,6 +1,6 @@
 ---
 name: posthog-axi
-description: Read PostHog projects, insights, dashboards, flags, events, and HogQL query results with the posthog-axi CLI.
+description: Manage PostHog insights, dashboards and feature flags, read events and projects, and run HogQL queries with the posthog-axi CLI.
 ---
 
 # PostHog AXI
@@ -20,10 +20,21 @@ Use scoped --help before calling a command.
 - `posthog-axi projects view <id>`
 - `posthog-axi insights list`
 - `posthog-axi insights view <id>`
+- `posthog-axi insights create`
+- `posthog-axi insights update <id>`
+- `posthog-axi insights archive <id>`
 - `posthog-axi dashboards list`
 - `posthog-axi dashboards view <id>`
+- `posthog-axi dashboards create`
+- `posthog-axi dashboards update <id>`
+- `posthog-axi dashboards archive <id>`
 - `posthog-axi flags list`
 - `posthog-axi flags view <id>`
+- `posthog-axi flags create`
+- `posthog-axi flags update <id>`
+- `posthog-axi flags archive <id>`
+- `posthog-axi flags enable <id>`
+- `posthog-axi flags disable <id>`
 - `posthog-axi events list`
 - `posthog-axi events view <id>`
 - `posthog-axi query --sql <sql> | --file <path>`
@@ -66,11 +77,30 @@ False truncated with null backend_has_more does not prove backend completeness.
 These fields apply to synchronous and completed asynchronous results.
 --full never removes row limits.
 Narrow SQL and the time range when the backend reports more rows.
+Create and update use scalar flags and named query or targeting files.
+Use scoped --help for supported inputs and exact permission scopes.
+Creation is not guaranteed idempotent; writes are never retried automatically.
+Use --dry-run for local credential-free previews.
+It does not check remote permissions, state, version or policy.
+Target-bound confirmations remain required.
+Obtain operator approval before destructive changes.
+Archive confirmations bind project, resource and ID.
+Query replacement and membership replacement require their impact confirmations.
+Flag targeting and activation require their own confirmations, including inactive creation with supplied targeting.
+Insight archives remove subscriptions and linked alerts and hide tiles.
+Query changes can also remove alerts.
+Dashboard archives preserve insights but hide tiles and clear home/primary references.
+These are not fully reversible operations.
+Manage dashboard membership through insights --dashboards using the deprecated upstream dashboards field.
+none clears membership.
+A missing archived insight or dashboard is not proof of an already-completed archive.
+Inspect before retrying an uncertain write.
+Honor server approval and version conflicts and never bypass them through another endpoint.
 
 ## Safe resource fields
 
 - projects accepts `id`, `name`, `timezone`, `created_at`.
-- insights accepts `id`, `name`, `derived_name`, `description`, `short_id`, `last_refresh`, `filters`, `query`.
+- insights accepts `id`, `name`, `derived_name`, `description`, `short_id`, `last_refresh`, `filters`, `query`, `tags`, `favorited`, `dashboard_tiles`.
 - dashboards accepts `id`, `name`, `description`, `pinned`, `tags`, `tiles`.
-- flags accepts `id`, `key`, `name`, `active`, `filters`.
+- flags accepts `id`, `key`, `name`, `active`, `filters`, `archived`, `version`.
 - events accepts `id`, `event`, `timestamp`, `distinct_id`, `properties`.

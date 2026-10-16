@@ -353,6 +353,9 @@ const examples = [
       last_refresh: null,
       filters: null,
       query: null,
+      tags: null,
+      favorited: null,
+      dashboard_tiles: null,
     },
   ],
   [
@@ -376,7 +379,15 @@ const examples = [
     '7',
     { id: 7, key: 'launch', name: 'Launch', active: true },
     { id: 7, key: 'launch', name: 'Launch', active: true },
-    { id: 7, key: 'launch', name: 'Launch', active: true, filters: null },
+    {
+      id: 7,
+      key: 'launch',
+      name: 'Launch',
+      active: true,
+      filters: null,
+      archived: null,
+      version: null,
+    },
   ],
   [
     'events',
@@ -450,7 +461,7 @@ test('version aliases, help, and home never send requests or need authentication
         POSTHOG_PERSONAL_API_KEY: '',
         POSTHOG_HOST: 'invalid',
       }),
-      { code: 0, stdout: '0.1.0\n', value: undefined },
+      { code: 0, stdout: '0.2.0\n', value: undefined },
     );
   for (const args of [
     ['--help'],
@@ -990,7 +1001,7 @@ test('package can be packed and installed outside checkout', async (t) => {
   const installedCli = join(e.directory, 'node_modules/posthog-axi/src/cli.js');
   await rename(installedCli, `${installedCli}.disabled`);
   for (const alias of ['--version', '-v', '-V'])
-    assert.equal((await e.run([alias], {}, executable)).stdout, '0.1.0\n');
+    assert.equal((await e.run([alias], {}, executable)).stdout, '0.2.0\n');
   await rename(`${installedCli}.disabled`, installedCli);
   const linked = spawn(
     join(e.directory, 'node_modules/.bin/posthog-axi'),
@@ -1010,7 +1021,7 @@ test('package can be packed and installed outside checkout', async (t) => {
     errors += chunk;
   });
   assert.equal(await new Promise((resolve) => linked.on('close', resolve)), 0);
-  assert.equal(version, '0.1.0\n');
+  assert.equal(version, '0.2.0\n');
   assert.equal(errors, '');
   const list = await e.run(['projects', 'list', '--json'], {}, executable);
   assert.equal(list.code, 0);

@@ -1,6 +1,6 @@
 # PostHog AXI
 
-Read PostHog analytics through a small CLI for agents.
+Manage PostHog analytics, insights, dashboards and feature flags through a small CLI for agents.
 This is a private, unpublished initial release for Node.js 20 or newer.
 No license grant is included.
 
@@ -18,11 +18,12 @@ posthog-axi --version
 
 Alternatively, run `npm link` in the checkout to link the binary.
 Without global installation, run `node /path/to/posthog-axi/bin/posthog-axi.js`.
-The version output is `0.1.0`.
+The version output is `0.2.0`.
 
 ## Authenticate and inspect analytics
 
 Create a PostHog personal API key with read access to the resources you need.
+Writes additionally require `insight:write`, `dashboard:write` or `feature_flag:write` for the corresponding resource.
 A public project ingestion key does not work.
 Load the personal key into `POSTHOG_PERSONAL_API_KEY` using your secret manager or a hidden shell prompt.
 Never put it in command arguments.
@@ -46,6 +47,78 @@ Use `--host https://eu.posthog.com` for EU Cloud, or an HTTPS self-hosted origin
 Only loopback hosts accept HTTP.
 Use `--project 42` to override `POSTHOG_PROJECT_ID`.
 The host defaults to `https://us.posthog.com`.
+
+## Create and update resources
+
+Common metadata edits use scalar flags, not temporary JSON request bodies.
+Complex definitions use named JSON files.
+The examples below assume `POSTHOG_PROJECT_ID=42` and show hypothetical IDs, not resources to modify without reviewing their actual identity.
+
+```sh
+posthog-axi dashboards create --name 'Acquisition' --dry-run
+posthog-axi dashboards update 12 --description 'Weekly funnel' --pinned true
+posthog-axi insights create --name 'Signup funnel' --query-file ./funnel.json --dashboards 12,18
+posthog-axi insights update 7 --description ''
+posthog-axi insights update 7 --query-file ./funnel.json --confirm-query 42/insights/7
+posthog-axi insights update 7 --dashboards none --confirm-membership 42/insights/7
+posthog-axi flags create --key checkout-v2 --name 'Checkout experiment'
+posthog-axi flags update 9 --targeting-file ./targeting.json --confirm-targeting 42/flags/9
+posthog-axi flags enable 9 --confirm-enable 42/flags/9
+posthog-axi flags disable 9 --confirm-disable 42/flags/9
+posthog-axi flags archive 9 --confirm-archive 42/flags/9
+posthog-axi insights archive 7 --confirm-archive 42/insights/7
+posthog-axi dashboards archive 12 --confirm-archive 42/dashboards/12
+```
+
+`insights` and `dashboards` accept `create`, `update` and `archive`.
+`flags` additionally accepts `enable` and `disable`.
+Use scoped `--help` for the exact writable inputs.
+Insight creation requires `--query-file` with a nonempty query object, for example `{"kind":"HogQLQuery","query":"SELECT 1"}`.
+The CLI checks structural limits and core types; PostHog remains authoritative for full query semantics.
+Targeting files contain filters such as `{"groups":[{"properties":[],"rollout_percentage":25}]}`.
+Supported targeting root keys are `groups`, `multivariate`, `aggregation_group_type_index` and `payloads`.
+Payload values must be strings, and variants require unique keys and numeric rollout percentages.
+Structured files must be regular UTF-8 JSON files of at most 65536 bytes, 20 nesting levels, 10000 values and 1000 entries per collection.
+
+Omitted inputs remain unchanged, empty descriptions clear them, and empty updates fail.
+Tags accept comma-separated names or `none` to clear them.
+Insight `--dashboards` replaces the complete membership set; `none` removes all memberships.
+This uses PostHog's supported but deprecated `dashboards` write field.
+Current membership is read from nondeleted `dashboard_tiles` or an explicit upstream membership response.
+Both `deleted:false` and the upstream nullable `deleted:null` state count as nondeleted tiles.
+There is no dashboard-side multi-write association command.
+
+Flags default to inactive with standard boolean targeting at 100 percent rollout.
+Supplied targeting requires confirmation even for inactive creation.
+Create-time confirmations use `<project>/flags/key:<key>` instead of a numeric ID.
+For example, explicit active creation requires `--active true --confirm-enable 42/flags/key:checkout-v2`.
+A supplied targeting file also requires `--confirm-targeting 42/flags/key:checkout-v2`.
+Existing flags change serving state only through dedicated enable and disable actions.
+Flag `--name` maps to the upstream `name` field, which stores a description-like label.
+Key renames and hidden lifecycle fields are not accepted through updates.
+Targeting updates carry the observed version when available; this is not a universal compare-and-swap guarantee across server configurations.
+
+All mutation commands support `--dry-run` without credentials or network requests.
+Dry runs still require correct target-bound confirmations and only preview locally validated requests.
+They do not check remote permissions, state, version, dependencies or approval policies.
+Obtain operator approval before destructive actions; a CLI confirmation flag does not replace that approval.
+Insight archive removes subscriptions and linked alerts and hides tiles.
+Query replacement can also remove alerts when the new query is not alertable.
+Dashboard archive hides tiles and clears home or primary references while explicitly preserving insights with `delete_insights:false`.
+These operations are not fully reversible.
+Flag lifecycle actions preserve targeting and history and retain server dependency and approval checks.
+No hard-delete command is provided.
+
+Mutation results report `preview`, `applied` or an observed `unchanged` state.
+Creation has no guaranteed idempotency and names are not idempotency keys.
+Writes are never automatically retried.
+A possible commit followed by connection loss, timeout, ambiguous server failure or unusable response produces `MUTATION_UNCERTAIN` and an inspection command.
+Inspect before retrying, especially after creation.
+A confirmed write retains a minimal receipt if returned content cannot be safely rendered.
+HTTP409 approval responses retain only safe workflow references and do not claim the flag change was applied.
+No alternate endpoint is used to bypass approval or concurrency policy.
+Archived flags remain observable, but deleted insights and dashboards can disappear from ordinary detail lookup.
+A later HTTP404 is not proof of an already-completed archive.
 
 ## Command reference
 
@@ -144,7 +217,9 @@ SDK self-update is disabled because this private package is not published.
 ## Design and safety
 
 `src/resources.js` owns ResourceSpec metadata, endpoints, identifiers, safe fields, default summaries, and resource response validation.
-`src/arguments.js` parses Invocation variants and validates arguments, environment scope, and SQL input before authentication.
+`src/arguments.js` parses Invocation variants and validates arguments, environment scope, and inputs before authentication.
+`src/inputs.js` reads bounded files and validates named query and targeting inputs.
+`src/mutations.js` owns mutation plans, observed no-ops, safe receipts and uncertain outcomes.
 `src/http.js` owns the authenticated HTTP boundary and continuation validation.
 `src/query.js` decodes complete, pending, and failed QueryOutcome variants, including actual nested `query_status` responses.
 `src/output.js` projects fields, redacts secrets, previews content, and bounds serialization.
@@ -153,8 +228,9 @@ The executable uses its dependency-free version fast path.
 `src/guidance.js` generates help and the static skill.
 Do not edit generated skill files manually.
 
-The CLI reads projects, insights, dashboards, flags, and events.
-It does not mutate project configuration, ingest events, expose arbitrary HTTP requests, or install integrations implicitly.
+The CLI reads projects, insights, dashboards, flags, and events and explicitly creates, updates and archives insights, dashboards and flags.
+Home and ordinary reads remain side-effect-free.
+The CLI does not ingest events, expose arbitrary HTTP requests, hard-delete resources or install integrations implicitly.
 The query POST executes analytics and does not change project configuration.
 Safe projections exclude project API tokens from lists and details.
 Known secret-key patterns and exact occurrences of the configured credential are redacted recursively.

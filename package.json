@@ -1,8 +1,8 @@
 {
   "name": "posthog-axi",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Read-only PostHog analytics CLI for agents",
+  "description": "Manage PostHog analytics, dashboards and feature flags for agents",
   "type": "module",
   "engines": {
     "node": ">=20"

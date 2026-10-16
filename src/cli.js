@@ -12,6 +12,7 @@ import { CliError, invalidResponse } from './errors.js';
 import { serialize, projectItem, quote } from './output.js';
 import { commands, description, help } from './guidance.js';
 import { VERSION } from './version.js';
+import { executeMutation, minimalMutationReceipt } from './mutations.js';
 import { resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -53,6 +54,7 @@ async function execute(invocation) {
       next: `posthog-axi ${project ? 'insights' : 'projects'} list --host ${quote(invocation.host)}${project ? ` --project ${quote(project)}` : ''}`,
     };
   }
+  if (kind === 'mutation') return executeMutation(invocation);
   if (kind === 'update')
     throw new CliError(
       'UPDATE_UNAVAILABLE',
@@ -147,9 +149,12 @@ async function execute(invocation) {
   const data =
     kind === 'query'
       ? await request(invocation, queryPath, {
-          query: { kind: 'HogQLQuery', query: invocation.sql },
-          name: 'posthog-axi ad-hoc query',
-          refresh: 'blocking',
+          method: 'POST',
+          body: {
+            query: { kind: 'HogQLQuery', query: invocation.sql },
+            name: 'posthog-axi ad-hoc query',
+            refresh: 'blocking',
+          },
         })
       : await request(invocation, `${queryPath}${invocation.id}/`);
   const outcome = decodeQuery(data, invocation);
@@ -159,7 +164,19 @@ async function execute(invocation) {
 
 export async function main() {
   let invocation;
-  const handler = async () => serialize(await execute(invocation), invocation);
+  const handler = async () => {
+    const result = await execute(invocation);
+    try {
+      return serialize(result, invocation);
+    } catch (error) {
+      if (
+        invocation.kind === 'mutation' &&
+        ['applied', 'unchanged'].includes(result.state)
+      )
+        return serialize(minimalMutationReceipt(result), invocation);
+      throw error;
+    }
+  };
   // Normalize no-args home to avoid the SDK's additional non-JSON home header.
   const argv = process.argv.length === 2 ? ['home'] : process.argv.slice(2);
   await runAxiCli({

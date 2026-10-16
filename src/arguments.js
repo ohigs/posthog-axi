@@ -1,7 +1,7 @@
-import { open } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { readInputFile } from './inputs.js';
 import { resources, validProject, validQueryId } from './resources.js';
 import { usage } from './errors.js';
+import { prepareMutation } from './mutations.js';
 
 export const commonFlags = ['help', 'json', 'host', 'project'];
 export const commandFlags = {
@@ -14,9 +14,25 @@ export const commandFlags = {
   'setup-status': ['project-dir'],
   update: [],
 };
-const booleans = new Set(['help', 'json', 'full', 'allow-codex-user-config']);
+const booleans = new Set([
+  'help',
+  'json',
+  'full',
+  'allow-codex-user-config',
+  'dry-run',
+]);
+const mutationFlags = (spec) => [
+  'dry-run',
+  ...Object.keys(spec.inputs),
+  ...(spec.confirmations ?? []).map((guard) => guard.flag),
+];
 
-export function allowedFlags(kind, resource) {
+export function allowedFlags(kind, resource, action) {
+  if (kind === 'mutation')
+    return [
+      ...commonFlags,
+      ...mutationFlags(resources[resource].mutations[action]),
+    ];
   return [
     ...commonFlags,
     ...commandFlags[kind],
@@ -90,6 +106,7 @@ export async function parseInvocation(argv, env) {
         ...Object.values(resources).flatMap((spec) => [
           ...(spec.pagination ?? []),
           ...Object.keys(spec.filters ?? {}),
+          ...Object.values(spec.mutations ?? {}).flatMap(mutationFlags),
         ]),
       ].includes(name)
     ) {
@@ -99,7 +116,7 @@ export async function parseInvocation(argv, env) {
     if (Object.hasOwn(flags, name)) throw usage(`Duplicate --${name}.`);
     if (booleans.has(name)) flags[name] = true;
     else {
-      if (!argv[i + 1] || argv[i + 1].startsWith('--'))
+      if (argv[i + 1] === undefined || argv[i + 1].startsWith('--'))
         throw usage(`Missing value for --${name}.`);
       flags[name] = argv[++i];
     }
@@ -110,8 +127,12 @@ export async function parseInvocation(argv, env) {
   if (Object.hasOwn(resources, command)) {
     resource = command;
     if (!action && flags.help) kind = 'list';
+    else if (Object.hasOwn(resources[resource].mutations ?? {}, action))
+      kind = 'mutation';
     else if (!['list', 'view'].includes(action))
-      throw usage('Expected list or view.');
+      throw usage(
+        `Expected ${['list', 'view', ...Object.keys(resources[resource].mutations ?? {})].join(', ')}.`,
+      );
     else kind = action;
   } else if (command === 'query') {
     kind = action === 'status' ? 'query-status' : 'query';
@@ -122,7 +143,7 @@ export async function parseInvocation(argv, env) {
     } else kind = `setup-${action}`;
   } else if (!['home', 'update'].includes(command))
     throw usage('Unknown command or unexpected argument. Run --help.');
-  const allowed = allowedFlags(kind, resource);
+  const allowed = allowedFlags(kind, resource, action);
   const invalid = Object.keys(flags).find((name) => !allowed.includes(name));
   if (unknown.length || invalid) {
     const name = unknown[0] ?? invalid;
@@ -132,9 +153,11 @@ export async function parseInvocation(argv, env) {
     );
   }
   if (resource) {
-    if (positionals.length > (kind === 'view' ? 3 : 2))
+    const needsId =
+      kind === 'view' || (kind === 'mutation' && action !== 'create');
+    if (positionals.length > (needsId ? 3 : 2))
       throw usage('Unexpected positional argument.');
-    if (kind === 'view' && (!id ? !flags.help : !resources[resource].id(id)))
+    if (needsId && (!id ? !flags.help : !resources[resource].id(id)))
       throw usage('Invalid resource ID.');
   } else if (kind === 'query-status') {
     if ((!id ? !flags.help : !validQueryId(id)) || positionals.length > 3)
@@ -187,37 +210,7 @@ export async function parseInvocation(argv, env) {
     throw usage('--sql and --file are mutually exclusive.');
   let sql = flags.sql;
   if (flags.file !== undefined) {
-    let handle;
-    try {
-      handle = await open(
-        flags.file,
-        constants.O_RDONLY | constants.O_NONBLOCK,
-      );
-      const stat = await handle.stat();
-      if (!stat.isFile() || stat.size > 65536)
-        throw usage('SQL file must be a regular file of at most 65536 bytes.');
-      const buffer = Buffer.alloc(65537);
-      let size = 0;
-      while (size < buffer.length) {
-        const { bytesRead } = await handle.read(
-          buffer,
-          size,
-          buffer.length - size,
-          size,
-        );
-        if (bytesRead === 0) break;
-        size += bytesRead;
-      }
-      if (size > 65536) throw usage('SQL file exceeds 65536 bytes.');
-      sql = new TextDecoder('utf-8', { fatal: true }).decode(
-        buffer.subarray(0, size),
-      );
-    } catch (error) {
-      if (error.code === 'VALIDATION_ERROR') throw error;
-      throw usage('Cannot read SQL file.');
-    } finally {
-      await handle?.close();
-    }
+    sql = await readInputFile(flags.file, 'SQL');
   }
   if (sql !== undefined && (!sql.trim() || Buffer.byteLength(sql) > 65536))
     throw usage('SQL must contain 1 through 65536 bytes.');
@@ -237,7 +230,7 @@ export async function parseInvocation(argv, env) {
     throw usage(
       'Setup requires --allow-codex-user-config. It enables hooks in the Codex user config.toml.',
     );
-  return {
+  const invocation = {
     kind: flags.help ? 'help' : kind,
     topic: kind,
     command,
@@ -252,4 +245,7 @@ export async function parseInvocation(argv, env) {
     fields,
     sql,
   };
+  if (kind === 'mutation' && !flags.help)
+    invocation.mutation = await prepareMutation(invocation);
+  return invocation;
 }

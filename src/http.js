@@ -3,7 +3,7 @@ import { CliError, invalidResponse } from './errors.js';
 export const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 export const TIMEOUT_MS = 10000;
 
-export async function request(invocation, path, body) {
+export async function request(invocation, path, { method = 'GET', body } = {}) {
   const key = process.env.POSTHOG_PERSONAL_API_KEY;
   if (!key || /[\r\n]/.test(key))
     throw new CliError(
@@ -14,7 +14,7 @@ export async function request(invocation, path, body) {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const response = await fetch(`${invocation.host}${path}`, {
-      method: body ? 'POST' : 'GET',
+      method,
       redirect: 'manual',
       signal: controller.signal,
       headers: {
@@ -61,12 +61,37 @@ export async function request(invocation, path, body) {
             status.error_message.length > 0))
       )
         return data;
+      if (
+        response.status === 409 &&
+        invocation.kind === 'mutation' &&
+        ['approval_required', 'change_request_pending'].includes(data?.code)
+      ) {
+        const reference = data.change_request_id;
+        throw new CliError(
+          'APPROVAL_REQUIRED',
+          'PostHog requires approval. A change request may have been created; inspect it before retrying. The requested flag change is not confirmed applied.',
+          1,
+          {
+            status: 409,
+            outcome: 'approval_required',
+            ...((typeof reference === 'string' &&
+              /^[A-Za-z0-9_-]{1,128}$/.test(reference)) ||
+            (Number.isSafeInteger(reference) && reference > 0)
+              ? { change_request_id: reference }
+              : {}),
+          },
+        );
+      }
       const retry = response.headers.get('retry-after');
       const advice =
         {
           400: 'Check command inputs and SQL, then use scoped --help.',
           401: 'Set POSTHOG_PERSONAL_API_KEY to a valid personal API key for this host.',
-          403: 'Check personal API key read permissions and the selected project scope.',
+          403:
+            invocation.kind === 'mutation'
+              ? 'Check personal API key read and write permissions and the selected project scope.'
+              : 'Check personal API key read permissions and the selected project scope.',
+          409: 'The change conflicts with current state or approval policy. Inspect the resource before retrying.',
           404: 'Check the resource ID, --project, and --host.',
         }[response.status] ??
         (response.status >= 500
